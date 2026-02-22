@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { supabaseServerClient } from "@/lib/supabaseServerClient";
 
 export async function POST(req: Request) {
-  const supabase = supabaseServerClient;
-
   try {
     const body = await req.json();
     const { to, from, type, post_id, comment_id, extra } = body;
@@ -11,6 +9,8 @@ export async function POST(req: Request) {
     if (!to || !from || !type) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
+
+    const supabase = supabaseServerClient(); // 👈 CALL IT
 
     const { error } = await supabase.from("notifications").insert({
       to,
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
