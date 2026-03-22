@@ -6,39 +6,55 @@ import Image from "next/image";
 import LocationSelector from "./LocationSelector";
 
 type LocationValue = {
-  city: string;
-  province: string;
+  city: string | null;
+  province: string | null;
   latitude: number | null;
   longitude: number | null;
 };
 
-export default function CreatePost() {
+type CreatePostProps = {
+  onPostCreated?: () => void;
+};
+
+export default function CreatePost({ onPostCreated }: CreatePostProps) {
   const [caption, setCaption] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // -------------------------------
-  // Add Images
-  // -------------------------------
+  /* ---------------------------------------
+     SELECT IMAGES
+  --------------------------------------- */
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const files = Array.from(e.target.files);
+
+    const files: File[] = Array.from(e.target.files);
+    const previewUrls = files.map((file) => URL.createObjectURL(file));
+
     setSelectedImages((prev) => [...prev, ...files]);
+    setPreviews((prev) => [...prev, ...previewUrls]);
   };
 
-  // -------------------------------
-  // Remove Image
-  // -------------------------------
+  /* ---------------------------------------
+     REMOVE IMAGE
+  --------------------------------------- */
   const removeImage = (index: number) => {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // -------------------------------
-  // Submit Post
-  // -------------------------------
+  /* ---------------------------------------
+     SUBMIT POST
+  --------------------------------------- */
   const submitPost = async () => {
     if (isSubmitting) return;
+
+    if (!caption.trim() && selectedImages.length === 0) {
+      alert("Post must contain text or images.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -48,29 +64,28 @@ export default function CreatePost() {
 
       if (!user) throw new Error("Not logged in");
 
-      // Upload images
-      const urls: string[] = [];
-
-      for (let i = 0; i < selectedImages.length; i++) {
-        const file = selectedImages[i];
+      /* Upload images in parallel */
+      const uploadPromises = selectedImages.map(async (file, i) => {
         const ext = file.name.split(".").pop();
-        const fileName = `${user.id}-${Date.now()}-${i}.${ext}`;
+        const fileName = `${user.id}/${Date.now()}-${i}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error } = await supabase.storage
           .from("post-images")
           .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+        if (error) throw error;
 
         const {
           data: { publicUrl },
         } = supabase.storage.from("post-images").getPublicUrl(fileName);
 
-        urls.push(publicUrl);
-      }
+        return publicUrl;
+      });
 
-      // INSERT INTO CORRECT COLUMNS
-      const { error: insertError } = await supabase.from("posts").insert({
+      const urls = await Promise.all(uploadPromises);
+
+      /* Insert post */
+      const { error } = await supabase.from("posts").insert({
         content: caption,
         images: urls,
         location: location
@@ -84,50 +99,51 @@ export default function CreatePost() {
         user_id: user.id,
       });
 
-      if (insertError) throw insertError;
+      if (error) throw error;
 
-      // Refresh feed
+      /* Notify feed */
       window.dispatchEvent(new Event("post:created"));
 
-      // Reset form
+      /* Notify parent component */
+      onPostCreated?.();
+
+      /* Reset form */
       setCaption("");
       setSelectedImages([]);
+      setPreviews([]);
       setLocation(null);
 
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
       alert("Failed to create post.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // -------------------------------
-  // Image Grid UI
-  // -------------------------------
+  /* ---------------------------------------
+     IMAGE GRID
+  --------------------------------------- */
   const renderImageGrid = () => {
-    if (selectedImages.length === 0) return null;
+    if (previews.length === 0) return null;
 
     return (
       <div className="grid grid-cols-2 gap-2 mt-3">
-        {selectedImages.map((file, idx) => {
-          const preview = URL.createObjectURL(file);
-          return (
-            <div
-              key={idx}
-              className="relative w-full aspect-square rounded-lg overflow-hidden"
-            >
-              <Image src={preview} alt="preview" fill className="object-cover" />
+        {previews.map((preview, idx) => (
+          <div
+            key={idx}
+            className="relative w-full aspect-square rounded-lg overflow-hidden"
+          >
+            <Image src={preview} alt="preview" fill className="object-cover" />
 
-              <button
-                onClick={() => removeImage(idx)}
-                className="absolute top-2 right-2 bg-black/60 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
-              >
-                ✕
-              </button>
-            </div>
-          );
-        })}
+            <button
+              onClick={() => removeImage(idx)}
+              className="absolute top-2 right-2 bg-black/60 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
     );
   };
@@ -145,9 +161,9 @@ export default function CreatePost() {
         onChange={(e) => setCaption(e.target.value)}
       />
 
-      {/* Add photos */}
+      {/* Add images */}
       <label className="mt-4 w-full flex items-center justify-center border border-gray-300 rounded-xl py-3 cursor-pointer hover:bg-gray-50">
-        ➕ Add photos/videos
+        ➕ Add photos
         <input
           type="file"
           accept="image/*"
@@ -164,7 +180,7 @@ export default function CreatePost() {
         <LocationSelector value={location} onChange={setLocation} />
       </div>
 
-      {/* Submit button */}
+      {/* Submit */}
       <button
         onClick={submitPost}
         disabled={isSubmitting}

@@ -2,236 +2,216 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import {
+  CalendarDaysIcon,
+  ClockIcon,
+  MagnifyingGlassIcon,
+} from "@heroicons/react/24/outline";
 
 type Event = {
   id: string;
   title: string;
   start_time: string;
-  churches?: {
-    image_url?: string | null;
-  };
+  churchName: string;
+  churchLocation: string;
 };
 
-export default function EventsPage() {
-  const router = useRouter();
+type FilterType = "all" | "weekend" | "month";
 
+export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [filtered, setFiltered] = useState<Event[]>([]);
-  const [filter, setFilter] = useState<"all" | "weekend" | "month">("all");
-  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterType>("all");
 
-  /** ---------- DATE HELPERS ---------- */
+  const router = useRouter();
 
-  const startOfDay = (d: Date) =>
-    new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-  const endOfDay = (d: Date) =>
-    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-
-  const getWeekendRange = () => {
-    const today = new Date();
-    const day = today.getDay(); // 0 = Sun, 6 = Sat
-
-    let saturday = new Date(today);
-    let sunday = new Date(today);
-
-    if (day === 6) {
-      sunday.setDate(today.getDate() + 1);
-    } else if (day === 0) {
-      saturday = new Date(today);
-    } else {
-      saturday.setDate(today.getDate() + (6 - day));
-      sunday.setDate(saturday.getDate() + 1);
-    }
-
-    return {
-      start: startOfDay(saturday),
-      end: endOfDay(sunday),
-    };
-  };
-
-  const getMonthRange = () => {
-    const now = new Date();
-    return {
-      start: startOfDay(now),
-      end: endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-    };
-  };
-
-  /** ---------- LOAD EVENTS ---------- */
-
+  /* =========================
+     🔥 LOAD EVENTS (FIXED)
+  ========================== */
   useEffect(() => {
-    const loadEvents = async () => {
-      const { data } = await supabase
+    const load = async () => {
+      const { data, error } = await supabase
         .from("events")
-        .select(
-          `
+        .select(`
           id,
           title,
           start_time,
           churches (
-            image_url
+            name,
+            location
           )
-        `
-        )
+        `)
         .order("start_time", { ascending: true });
 
-      setEvents(data || []);
-      setFiltered(data || []);
-      setLoading(false);
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      // ✅ NORMALIZE DATA (FIX)
+      const normalized = (data || []).map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        start_time: event.start_time,
+        churchName: event.churches?.[0]?.name || "Unknown",
+        churchLocation: event.churches?.[0]?.location || "",
+      }));
+
+      setEvents(normalized);
     };
 
-    loadEvents();
+    load();
   }, []);
 
-  /** ---------- APPLY FILTER ---------- */
+  /* =========================
+     🧠 DATE HELPERS
+  ========================== */
+  const isWeekend = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    return day === 6 || day === 0;
+  };
 
+  const isThisMonth = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    return (
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
+  };
+
+  /* =========================
+     🔍 SEARCH + FILTER
+  ========================== */
   useEffect(() => {
-    if (!events.length) return;
+    let temp = [...events];
 
-    if (filter === "all") {
-      setFiltered(events);
-      return;
+    // 🔍 SEARCH
+    if (query) {
+      const q = query.toLowerCase();
+
+      temp = temp.filter((event) => {
+        return (
+          event.title?.toLowerCase().includes(q) ||
+          event.churchName?.toLowerCase().includes(q) ||
+          event.churchLocation?.toLowerCase().includes(q)
+        );
+      });
     }
 
+    // 📅 FILTER
     if (filter === "weekend") {
-      const { start, end } = getWeekendRange();
-      setFiltered(
-        events.filter((ev) => {
-          const d = new Date(ev.start_time);
-          return d >= start && d <= end;
-        })
-      );
-      return;
+      temp = temp.filter((e) => isWeekend(e.start_time));
     }
 
     if (filter === "month") {
-      const { start, end } = getMonthRange();
-      setFiltered(
-        events.filter((ev) => {
-          const d = new Date(ev.start_time);
-          return d >= start && d <= end;
-        })
-      );
+      temp = temp.filter((e) => isThisMonth(e.start_time));
     }
-  }, [filter, events]);
 
-  if (loading) return <p className="p-6">Loading events…</p>;
+    setFiltered(temp);
+  }, [query, filter, events]);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-6">
 
-      {/* ← BACK TO HOME */}
-      <button
-        onClick={() => router.push("/")}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
-      >
-        ← Back
-      </button>
-
-      <div className="flex items-center gap-3">
-  <h1 className="text-2xl font-bold">Events</h1>
-
-  <div className="ml-auto flex gap-2">
-    <Link
-      href="/events/saved"
-      className="px-4 py-2 border rounded-lg"
-    >
-      ⭐ Saved
-    </Link>
-
-    <Link
-      href="/events/add"
-      className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-    >
-      Add Event
-    </Link>
-  </div>
-</div>
-
-      {/* FILTERS */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-4 py-2 rounded-lg border ${
-            filter === "all"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white border-gray-300"
-          }`}
-        >
-          All Events
-        </button>
-
-        <button
-          onClick={() => setFilter("weekend")}
-          className={`px-4 py-2 rounded-lg border ${
-            filter === "weekend"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white border-gray-300"
-          }`}
-        >
-          This Weekend
-        </button>
-
-        <button
-          onClick={() => setFilter("month")}
-          className={`px-4 py-2 rounded-lg border ${
-            filter === "month"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white border-gray-300"
-          }`}
-        >
-          This Month
-        </button>
-      </div>
-
-      {/* EVENTS GRID */}
-      {filtered.length === 0 ? (
-        <p className="text-gray-500 mt-4">No events found.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filtered.map((ev) => {
-            const img =
-              ev.churches?.image_url || "/default_church.jpg";
-
-            return (
-              <Link
-                key={ev.id}
-                href={`/events/${ev.id}`}
-                className="block rounded-xl border bg-white shadow hover:shadow-lg transition"
-              >
-                <div className="relative h-48 rounded-t-xl overflow-hidden">
-                  <Image
-                    src={img}
-                    alt={ev.title}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg">
-                    {ev.title}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {new Date(ev.start_time).toLocaleDateString("en-ZA", {
-                      weekday: "short",
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
+        {/* 🔍 SEARCH BAR */}
+        <div className="mb-4 relative">
+          <div className="flex items-center bg-white rounded-full px-4 py-3 shadow border">
+            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 mr-2" />
+            <input
+              type="text"
+              placeholder="Search events, churches, locations..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full outline-none text-sm"
+            />
+          </div>
         </div>
-      )}
+
+        {/* 🎯 FILTERS */}
+        <div className="flex gap-2 mb-6">
+          {[
+            { label: "All", value: "all" },
+            { label: "This Month", value: "month" },
+          ].map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value as FilterType)}
+              className={`px-4 py-2 rounded-full text-sm transition ${
+                filter === f.value
+                  ? "bg-black text-white shadow"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 📦 EVENTS */}
+        <div className="space-y-4">
+
+          {filtered.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-sm text-gray-500 mb-3">
+                No events found
+              </p>
+              <button
+                onClick={() =>
+                  router.push(`/events/add?title=${encodeURIComponent(query)}`)
+                }
+                className="bg-black text-white px-5 py-2 rounded-full text-sm"
+              >
+                + Add this event
+              </button>
+            </div>
+          )}
+
+          {filtered.map((event) => (
+            <div
+              key={event.id}
+              onClick={() => router.push(`/events/${event.id}`)}
+              className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer border"
+            >
+              {/* TITLE */}
+              <h2 className="font-semibold text-gray-900 text-base mb-1">
+                {event.title}
+              </h2>
+
+              {/* CHURCH */}
+              <p className="text-sm text-gray-500 mb-2">
+                {event.churchName} • {event.churchLocation}
+              </p>
+
+              {/* DATE + TIME */}
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+
+                <div className="flex items-center gap-1">
+                  <CalendarDaysIcon className="w-4 h-4" />
+                  {new Date(event.start_time).toLocaleDateString("en-ZA", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <ClockIcon className="w-4 h-4" />
+                  {new Date(event.start_time).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

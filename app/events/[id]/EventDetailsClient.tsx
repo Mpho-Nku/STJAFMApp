@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { motion } from "framer-motion";
+import {
+  MapPinIcon,
+  CalendarDaysIcon,
+  ShareIcon,
+} from "@heroicons/react/24/outline";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { SaveButton } from "@/components/SaveButton";
+import DeleteEventButton from "@/components/DeleteButton"; // ✅ ADD THIS
 
 type Props = {
   event: any;
@@ -13,209 +19,119 @@ type Props = {
   user: any;
 };
 
-/* ✅ SAFE DATE FORMATTER (client only, consistent) */
-const formatDate = (date?: string) => {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
 export default function EventDetailsClient({
   event,
   isOwner,
   isSaved,
-  reminderDays,
   user,
 }: Props) {
   const router = useRouter();
 
-  if (!event) {
-    return (
-      <div className="p-10 text-center text-gray-500">
-        Loading event…
-      </div>
-    );
-  }
+  const church = Array.isArray(event?.churches)
+    ? event.churches[0]
+    : event?.churches;
 
-  const [saved, setSaved] = useState(isSaved);
-  const [daysBefore, setDaysBefore] = useState(reminderDays ?? 1);
-  const [saving, setSaving] = useState(false);
-
-  const church = event.churches;
-  const image = church?.image_url || "/default_church.jpg";
-
-  const location = [
-    church?.street,
-    church?.suburb,
-    church?.township,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const mapsUrl = location
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        location
-      )}`
-    : null;
-
-  /* ⭐ SAVE / UNSAVE EVENT */
-  const toggleSave = async () => {
-    if (!user) {
-      alert("Please sign in to save events");
-      return;
-    }
-
-    setSaving(true);
-
-    if (saved) {
-      await supabase
-        .from("saved_events")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("event_id", event.id);
-
-      await supabase
-        .from("event_reminders")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("event_id", event.id);
-
-      setSaved(false);
-    } else {
-      await supabase.from("saved_events").insert({
-        user_id: user.id,
-        event_id: event.id,
-      });
-
-      await supabase.from("event_reminders").upsert({
-        user_id: user.id,
-        event_id: event.id,
-        days_before: daysBefore,
-      });
-
-      setSaved(true);
-    }
-
-    setSaving(false);
-  };
-
-  /* 🔔 UPDATE REMINDER */
-  const updateReminder = async (value: number) => {
-    setDaysBefore(value);
-
-    if (!user) return;
-
-    await supabase.from("event_reminders").upsert({
-      user_id: user.id,
-      event_id: event.id,
-      days_before: value,
-    });
-  };
+  const startDate = new Date(event.start_time);
+  const endDate = new Date(event.end_time);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      {/* ← BACK */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
-      >
-        ← Back
-      </button>
+    <div className="min-h-screen bg-gray-50 pb-24">
 
-      {/* IMAGE */}
-      <div className="relative w-full h-64 rounded-xl overflow-hidden bg-gray-200">
+      {/* HERO */}
+      <div className="relative h-[220px] w-full overflow-hidden rounded-b-3xl">
         <Image
-          src={image}
-          alt={event.title}
+          src={church?.image_url || "/default_church.jpg"}
+          alt={event?.title || "Event"}
           fill
           className="object-cover"
         />
+
+        <div className="absolute inset-0 bg-black/40" />
+
+        <div className="absolute bottom-4 left-4 text-white">
+          <h1 className="text-xl font-bold">{event?.title}</h1>
+          <p className="text-sm opacity-90">{church?.name}</p>
+
+          {church?.pastor_name && (
+            <p className="text-sm opacity-90">
+              Hosted by: {church.pastor_name}
+            </p>
+          )}
+        </div>
+
+        <div className="absolute top-4 right-4 flex gap-2">
+          <button className="bg-white/90 p-2 rounded-full shadow">
+            <ShareIcon className="w-5 h-5" />
+          </button>
+
+          <SaveButton
+            eventId={event.id}
+            userId={user?.id}
+            initialSaved={isSaved}
+          />
+        </div>
       </div>
 
-      {/* HEADER */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {event.title}
-        </h1>
-
-        {event.description && (
-          <p className="text-gray-700">
-            {event.description}
-          </p>
-        )}
-      </div>
-
-      {/* 📅 DATE SECTION */}
-      <section className="rounded-xl border bg-blue-50 p-4 space-y-1">
-        <p>
-          <strong>Start:</strong> {formatDate(event.start_time)}
+      {/* CONTENT */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto -mt-10 bg-white rounded-2xl shadow-xl p-6"
+      >
+        <p className="text-sm text-gray-500 mb-4">
+          {church?.name}
         </p>
-        <p>
-          <strong>End:</strong> {formatDate(event.end_time)}
-        </p>
-      </section>
 
-      {/* 📍 LOCATION + NAVIGATE */}
-      {church && (
-        <section className="rounded-xl border p-4 space-y-3">
-          <div>
-            <p className="text-sm text-gray-500 uppercase">
-              Hosted by
-            </p>
-            <p className="font-semibold text-lg">
-              {church.name}
-            </p>
-            {location && (
-              <p className="text-gray-600 text-sm">
-                {location}
-              </p>
-            )}
+        {/* INFO */}
+        <div className="space-y-4">
+
+          <div className="flex items-center gap-3">
+            <CalendarDaysIcon className="w-5 h-5 text-gray-400" />
+            <span className="text-sm">
+              {startDate.toDateString()}
+            </span>
+            <span className="text-sm text-gray-400">
+              → {endDate.toDateString()}
+            </span>
           </div>
 
-          {mapsUrl && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
+          <div className="flex items-center gap-3">
+            <MapPinIcon className="w-5 h-5 text-gray-400" />
+            <span className="text-sm">
+              {church?.location}
+            </span>
+          </div>
+        </div>
+
+        {/* DESCRIPTION */}
+        <div className="mt-6">
+          <h2 className="font-semibold mb-2">About this event</h2>
+          <p className="text-sm text-gray-600">
+            {event?.description || "No description provided."}
+          </p>
+        </div>
+
+        {/* 🔥 EDIT + DELETE */}
+        {isOwner && (
+          <div className="mt-6 flex gap-3">
+
+            <button
+              onClick={() => router.push(`/events/${event.id}/edit`)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
             >
-              📍 Navigate
-            </a>
-          )}
-        </section>
-      )}
+              ✏️ Edit
+            </button>
 
-      {/* ⭐ SAVE + REMINDER */}
-      <section className="flex items-center gap-4 pt-4 border-t">
-        <button
-          disabled={saving}
-          onClick={toggleSave}
-          className={`px-4 py-2 rounded-xl border transition ${
-            saved
-              ? "bg-yellow-400 text-white border-yellow-400"
-              : "bg-white border-gray-300"
-          }`}
-        >
-          {saved ? "★ Saved" : "☆ Save Event"}
-        </button>
-
-        {saved && (
-          <select
-            value={daysBefore}
-            onChange={(e) =>
-              updateReminder(Number(e.target.value))
-            }
-            className="border rounded-lg p-2 text-sm"
-          >
-            <option value={1}>Remind 1 day before</option>
-            <option value={2}>Remind 2 days before</option>
-            <option value={7}>Remind 1 week before</option>
-          </select>
+            <DeleteEventButton
+              eventId={event.id}
+              userId={user?.id}
+            />
+          </div>
         )}
-      </section>
+      </motion.div>
+
+      {/* STICKY CTA */}
+ 
     </div>
   );
 }

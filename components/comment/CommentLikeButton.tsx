@@ -4,7 +4,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Heart } from "lucide-react";
 
-export default function CommentLikeButton({ commentId, user }) {
+type CommentLikeButtonProps = {
+  commentId: string;
+  user: {
+    id: string;
+  } | null;
+};
+
+export default function CommentLikeButton({
+  commentId,
+  user,
+}: CommentLikeButtonProps) {
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(0);
 
@@ -40,8 +50,10 @@ export default function CommentLikeButton({ commentId, user }) {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, []);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [commentId]);
 
   const toggle = async () => {
     if (!user) return;
@@ -52,6 +64,7 @@ export default function CommentLikeButton({ commentId, user }) {
         .delete()
         .eq("comment_id", commentId)
         .eq("user_id", user.id);
+
       setLiked(false);
       setCount((c) => c - 1);
     } else {
@@ -59,6 +72,7 @@ export default function CommentLikeButton({ commentId, user }) {
         comment_id: commentId,
         user_id: user.id,
       });
+
       setLiked(true);
       setCount((c) => c + 1);
 

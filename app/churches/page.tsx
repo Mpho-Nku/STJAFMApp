@@ -34,11 +34,21 @@ export default function ChurchesPage() {
   }, []);
 
   const filtered = churches.filter((ch) =>
-    [ch.name, ch.pastor_name, ch.suburb, ch.township]
+    [ch.name, ch.pastor_name, ch.location]
       .join(" ")
       .toLowerCase()
       .includes(query.toLowerCase())
   );
+
+  // ✅ EMPTY STATE CONDITION
+  const showEmptyState = query.length > 2 && filtered.length === 0;
+
+  // ✅ HANDLE ADD CHURCH
+  const handleAddChurch = () => {
+    router.push(
+      `/onboarding/church/add?name=${encodeURIComponent(query)}`
+    );
+  };
 
   const handleDelete = async (id: string) => {
     const ok = confirm("Delete this church?");
@@ -79,77 +89,98 @@ export default function ChurchesPage() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
+      {/* ✅ EMPTY STATE */}
+      {showEmptyState && (
+        <div className="border rounded-xl p-6 text-center bg-gray-50">
+          <p className="text-gray-500 text-sm">
+            No churches found for{" "}
+            <span className="font-medium">"{query}"</span>
+          </p>
+
+          <button
+            onClick={handleAddChurch}
+            className="mt-4 text-blue-600 font-medium hover:underline"
+          >
+            My Church is not listed
+          </button>
+        </div>
+      )}
+
       {/* LIST */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filtered.map((ch) => {
-          const img = ch.image_url || "/default_church.jpg";
-          const isOwner = userId && ch.created_by === userId;
+      {!showEmptyState && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filtered.map((ch) => {
+            const img = ch.image_url || "/default_church.jpg";
+            const isOwner = userId && ch.created_by === userId;
 
-          return (
-            <div
-              key={ch.id}
-              className="relative border rounded-xl bg-white shadow hover:shadow-lg transition"
-            >
-              {/* IMAGE + LINK */}
-              <Link href={`/churches/${ch.id}`}>
-                <div className="w-full h-40 bg-gray-100 rounded-t-xl overflow-hidden relative">
-                  <Image
-                    src={img}
-                    alt={ch.name}
-                    fill
-                    className="object-cover"
-                  />
+            return (
+              <div
+                key={ch.id}
+                className="relative border rounded-xl bg-white shadow hover:shadow-lg transition"
+              >
+                {/* IMAGE + LINK */}
+                <Link href={`/churches/${ch.id}`}>
+                  <div className="w-full h-40 bg-gray-100 rounded-t-xl overflow-hidden relative">
+                    <Image
+                      src={img}
+                      alt={ch.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </Link>
+
+                {/* 3 DOT MENU */}
+                {isOwner && (
+                  <div className="absolute top-2 right-2 z-50">
+                    <button
+                      onClick={() =>
+                        setOpenMenuId(
+                          openMenuId === ch.id ? null : ch.id
+                        )
+                      }
+                      className="bg-white rounded-full px-2 py-1 shadow"
+                    >
+                      ⋮
+                    </button>
+
+                    {openMenuId === ch.id && (
+                      <div className="absolute right-0 mt-2 w-32 bg-white border rounded-lg shadow-lg">
+                        <Link
+                          href={`/churches/${ch.id}/edit`}
+                          className="block px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          Edit
+                        </Link>
+
+                        <button
+                          onClick={() => handleDelete(ch.id)}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TEXT */}
+                <div className="p-4 space-y-1">
+                  <h2 className="font-semibold text-lg">{ch.name}</h2>
+                  <p className="text-sm text-gray-600">
+                    Pastor: {ch.pastor_name || "N/A"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {[ch.location]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
                 </div>
-              </Link>
-
-              {/* 3 DOT MENU (OWNER ONLY) */}
-              {isOwner && (
-                <div className="absolute top-2 right-2 z-50">
-                  <button
-                    onClick={() =>
-                      setOpenMenuId(openMenuId === ch.id ? null : ch.id)
-                    }
-                    className="bg-white rounded-full px-2 py-1 shadow"
-                  >
-                    ⋮
-                  </button>
-
-                  {openMenuId === ch.id && (
-                    <div className="absolute right-0 mt-2 w-32 bg-white border rounded-lg shadow-lg">
-                      <Link
-                        href={`/churches/${ch.id}/edit`}
-                        className="block px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        Edit
-                      </Link>
-
-                      <button
-                        onClick={() => handleDelete(ch.id)}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TEXT */}
-              <div className="p-4 space-y-1">
-                <h2 className="font-semibold text-lg">{ch.name}</h2>
-                <p className="text-sm text-gray-600">
-                  Pastor: {ch.pastor_name || "N/A"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {[ch.street, ch.suburb, ch.township]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

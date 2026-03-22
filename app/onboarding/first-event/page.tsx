@@ -14,11 +14,21 @@ export default function FirstEventOnboarding() {
       data: { user },
     } = await supabase.auth.getUser();
 
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("church_id")
       .eq("id", user.id)
       .single();
+
+    if (!profile?.church_id) {
+      router.push("/onboarding/church");
+      return;
+    }
 
     await supabase.from("events").insert({
       title,

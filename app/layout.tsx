@@ -1,4 +1,6 @@
 import "./globals.css";
+import type { ReactNode } from "react";
+
 import NavBar from "@/components/NavBar";
 import EnforcementBanner from "@/app/components/EnforcementBanner";
 import Footer from "@/components/Footer";
@@ -8,13 +10,17 @@ export const metadata = {
   description: "Church app",
 };
 
-export default function RootLayout({ children }) {
+type RootLayoutProps = {
+  children: ReactNode;
+};
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className="bg-gray-50">
         <NavBar />
 
-        {/*  ✅ Enforcement banner is back again globally */}
+        {/* Enforcement banner globally */}
         <EnforcementBanner />
 
         <main className="max-w-6xl mx-auto px-4 py-6">

@@ -119,7 +119,11 @@ export default function CreatePostPage() {
       <input type="file" accept="image/*" onChange={handleImageChange} />
       <input type="file" accept="video/*" onChange={handleVideoChange} />
 
-      <MapPicker onLocationSelect={setLocation} />
+<MapPicker
+  onLocationSelect={(lat, lng) =>
+    setLocation({ lat, lng })
+  }
+/>
 
       <button
         onClick={submitPost}

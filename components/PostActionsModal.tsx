@@ -4,38 +4,44 @@ import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PostActions from '@/components/PostActions';
 
-export default function PostActionsModal({
-  postId,
-  isOpen,
-  onClose,
-}: {
+type PostActionsModalProps = {
   postId: string;
+  user: { id: string } | null;
   isOpen: boolean;
   onClose: () => void;
-}) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const startY = useRef(0);
-  const currentY = useRef(0);
+};
 
-  // ✅ Close when clicking outside modal
+export default function PostActionsModal({
+  postId,
+  user,
+  isOpen,
+  onClose,
+}: PostActionsModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const startY = useRef<number>(0);
+  const currentY = useRef<number>(0);
+
+  // Close when clicking outside modal
   const handleClickOutside = (e: MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       onClose();
     }
   };
 
-  // ✅ Handle swipe down on mobile
+  // Swipe start
   const handleTouchStart = (e: TouchEvent) => {
     startY.current = e.touches[0].clientY;
   };
 
+  // Swipe move
   const handleTouchMove = (e: TouchEvent) => {
     currentY.current = e.touches[0].clientY;
   };
 
+  // Swipe end
   const handleTouchEnd = () => {
     const diff = currentY.current - startY.current;
-    if (diff > 100) onClose(); // swipe down gesture threshold
+    if (diff > 100) onClose();
   };
 
   useEffect(() => {
@@ -45,6 +51,7 @@ export default function PostActionsModal({
       document.addEventListener('touchmove', handleTouchMove);
       document.addEventListener('touchend', handleTouchEnd);
     }
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleTouchStart);
@@ -57,7 +64,7 @@ export default function PostActionsModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* 🔹 Background blur overlay */}
+          {/* Background overlay */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
@@ -66,7 +73,7 @@ export default function PostActionsModal({
             onClick={onClose}
           />
 
-          {/* 🔹 Slide-up modal */}
+          {/* Modal */}
           <motion.div
             ref={modalRef}
             className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-lg p-4 max-h-[80vh] overflow-y-auto"
@@ -78,10 +85,10 @@ export default function PostActionsModal({
             {/* Drag handle */}
             <div className="w-10 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
 
-            {/* Comments section */}
-            <PostActions postId={postId} user={{ id: 'current_user' }} />
+            {/* Post Actions */}
+            <PostActions postId={postId} user={user} />
 
-            {/* Close button (optional) */}
+            {/* Close button */}
             <button
               onClick={onClose}
               className="w-full py-2 mt-4 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-700 text-sm"

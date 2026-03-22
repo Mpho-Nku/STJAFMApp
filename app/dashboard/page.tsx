@@ -22,7 +22,13 @@ const router = useRouter();
     phone: "",
     bio: "",
   });
-
+type Profile = {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+  church_id?: string | null;
+  // add other fields you use
+};
   // ---------------------------------------------------------
   // LOAD DASHBOARD
   // ---------------------------------------------------------
@@ -91,8 +97,7 @@ const router = useRouter();
       .eq("id", user.id);
 
     if (!error) {
-      setProfile((prev) => ({ ...prev, ...editData }));
-      setEditingProfile(false);
+      setProfile((prev: Profile | null) => ({ ...prev, ...editData }));
     } else {
       alert("Failed to update profile.");
     }

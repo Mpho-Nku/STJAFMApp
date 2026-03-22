@@ -4,37 +4,57 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import LocationSelector from '@/components/LocationSelector';
 
+type LocationValue = {
+  city: string | null;
+  province: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
 export default function CreatePostModal() {
   const [content, setContent] = useState('');
-  const [location, setLocation] = useState<{ name: string; lat?: number; lon?: number } | null>(null);
+  const [location, setLocation] = useState<LocationValue | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handlePost = async () => {
-    if (!content.trim()) return alert('Please enter some text.');
+    if (!content.trim()) {
+      alert('Please enter some text.');
+      return;
+    }
+
     setLoading(true);
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from('posts').insert([
-      {
-        user_id: user?.id,
-        content,
-        location_name: location?.name || null,
-        latitude: location?.lat || null,
-        longitude: location?.lon || null,
-      },
-    ]);
+      const { error } = await supabase.from('posts').insert([
+        {
+          user_id: user?.id,
+          content,
+          location: location
+            ? {
+                city: location.city,
+                province: location.province,
+              }
+            : null,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+        },
+      ]);
 
-    setLoading(false);
+      if (error) throw error;
 
-    if (error) {
-      console.error(error);
-      alert('Error posting.');
-    } else {
       setContent('');
       setLocation(null);
+
       alert('✅ Post created!');
+    } catch (err) {
+      console.error(err);
+      alert('Error posting.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,7 +68,11 @@ export default function CreatePostModal() {
         rows={3}
       />
 
-      <LocationSelector selected={location?.name || null} onSelect={(loc) => setLocation(loc)} />
+      {/* Correct props */}
+      <LocationSelector
+        value={location}
+        onChange={setLocation}
+      />
 
       <button
         onClick={handlePost}

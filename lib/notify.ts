@@ -1,4 +1,13 @@
+import { supabase } from "@/lib/supabaseClient";
 
+type SendNotificationParams = {
+  recipient_id: string;
+  sender_id: string;
+  post_id?: string | null;
+  comment_id?: string | null;
+  type: string;
+  message: string;
+};
 
 export async function sendNotification({
   recipient_id,
@@ -7,7 +16,7 @@ export async function sendNotification({
   comment_id = null,
   type,
   message,
-}) {
+}: SendNotificationParams) {
   if (!recipient_id || !sender_id || recipient_id === sender_id) return;
 
   await supabase.from("notifications").insert({

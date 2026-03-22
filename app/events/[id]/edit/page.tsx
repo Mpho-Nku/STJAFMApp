@@ -1,184 +1,55 @@
-"use client";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import EditEventForm from "./EditEventForm";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
-import SuccessModal from "@/components/ui/SuccessModal";
+export default async function EditEventPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const supabase = createServerComponentClient({ cookies });
 
-export default function EditEventPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const eventId = params.id;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  if (!user) redirect("/login");
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [location, setLocation] = useState("");
+  const { data: event, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", params.id)
+    .single();
 
-  // Load event
-  useEffect(() => {
-    const loadEvent = async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("title, description, start_time, end_time, location")
-        .eq("id", eventId)
-        .single();
+  if (error || !event) notFound();
 
-      if (error || !data) {
-        router.push("/events");
-        return;
-      }
-
-      setTitle(data.title ?? "");
-      setDescription(data.description ?? "");
-      setLocation(data.location ?? "");
-
-      if (data.start_time) {
-        const start = new Date(data.start_time);
-        setStartDate(start.toISOString().split("T")[0]);
-      }
-
-      if (data.end_time) {
-        const end = new Date(data.end_time);
-        setEndDate(end.toISOString().split("T")[0]);
-      }
-
-      setLoading(false);
-    };
-
-    loadEvent();
-  }, [eventId, router]);
-
-  // Auto-set end date to next day when start date changes
-  useEffect(() => {
-    if (!startDate) return;
-
-    const nextDay = new Date(startDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    setEndDate(nextDay.toISOString().split("T")[0]);
-  }, [startDate]);
-
-  const handleSave = async () => {
-    if (!title || !startDate) return;
-
-    setSaving(true);
-
-    const { error } = await supabase
-      .from("events")
-      .update({
-        title,
-        description,
-        start_time: startDate,
-        end_time: endDate,
-        location: location || null,
-      })
-      .eq("id", eventId);
-
-    setSaving(false);
-
-    if (error) {
-      alert("Failed to save changes");
-      return;
-    }
-
-    // ✅ Show success popup
-    setSaved(true);
-
-    // ✅ Redirect after short delay
-    setTimeout(() => {
-      router.push(`/events/${eventId}`);
-    }, 1500);
-  };
-
-  if (loading) {
-    return (
-      <p className="p-10 text-center text-gray-500">
-        Loading event…
-      </p>
-    );
+  // 🔒 OWNER CHECK
+  if (event.created_by !== user.id) {
+    redirect("/events");
   }
 
   return (
-    <>
-      <div className="max-w-lg mx-auto px-4 py-10">
-        <div className="bg-white rounded-2xl shadow p-6 space-y-5">
-          <h1 className="text-2xl font-bold">Edit Event</h1>
+    <div className="max-w-3xl mx-auto">
+      
+      {/* ✅ Header */}
+      <div className="flex items-center justify-between mb-6">
+        
+        {/* Back Button */}
+        <Link
+          href={`/events/${event.id}`}
+          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+        >
+          <span className="text-lg">←</span>
+        </Link>
 
-          {/* Title */}
-          <input
-            className="w-full p-3 border rounded-xl"
-            placeholder="Event title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-
-          {/* Description */}
-          <textarea
-            className="w-full p-3 border rounded-xl"
-            placeholder="Event description"
-            rows={4}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-
-          {/* Start date */}
-          <input
-            type="date"
-            className="w-full p-3 border rounded-xl"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-
-          {/* End date (auto) */}
-          <input
-            type="date"
-            className="w-full p-3 border rounded-xl bg-gray-100"
-            value={endDate}
-            disabled
-          />
-
-          {/* Location */}
-          <div>
-            <label className="text-sm text-gray-600">
-              Event location (optional)
-            </label>
-            <input
-              className="w-full p-3 border rounded-xl mt-1"
-              placeholder="Leave empty to use church address"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-blue-600 text-white px-6 py-2 rounded-xl disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-
-            <button
-              onClick={() => router.back()}
-              className="border px-6 py-2 rounded-xl"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        {/* Title */}
+        <h1 className="text-xl font-semibold">Edit Event</h1>
       </div>
 
-      {/* ✅ Success Popup */}
-      <SuccessModal
-        open={saved}
-        message="Changes saved"
-      />
-    </>
+      {/* Form */}
+      <EditEventForm event={event} />
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import EventDetailsClient from "./EventDetailsClient";
 
+import Link from "next/link";
 export default async function EventDetailsPage({
   params,
 }: {
@@ -15,6 +16,7 @@ export default async function EventDetailsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  
   /* ---------------- EVENT ---------------- */
   const { data: event, error: eventError } = await supabase
     .from("events")
@@ -29,10 +31,9 @@ export default async function EventDetailsPage({
       churches (
         id,
         name,
-        street,
-        suburb,
-        township,
-        image_url
+        location,
+        image_url,
+        pastor_name
       )
     `
     )
@@ -70,7 +71,9 @@ export default async function EventDetailsPage({
   }
 
   /* ---------------- RENDER ---------------- */
+
   return (
+    
     <EventDetailsClient
       event={event}
       isOwner={isOwner}
@@ -78,5 +81,6 @@ export default async function EventDetailsPage({
       reminderDays={reminderDays}
       user={user}
     />
+    
   );
 }

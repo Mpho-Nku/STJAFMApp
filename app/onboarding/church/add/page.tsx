@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChurchFormData } from "@/types/church";
 
 // Import Steps
 import Step1Name from "./Step1Name";
@@ -11,17 +12,18 @@ import Step4Image from "./Step4Image";
 import StepReview from "./StepReview";
 
 export default function AddChurchFlow() {
-  const TOTAL_STEPS = 7;
+
+  const TOTAL_STEPS = 6;
 
   const [step, setStep] = useState(1);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ChurchFormData>({
     name: "",
     location: "",
-    churchType: "",
+    type: "Headquarter",
     description: "",
-    images: [],
-    circuit: "",
+    pastorName: "",
+    image: null,
   });
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
@@ -33,7 +35,7 @@ export default function AddChurchFlow() {
       {/* Page Title */}
       <h1 className="text-2xl font-bold mb-6">Add Church</h1>
 
-      {/* PROGRESS BAR */}
+      {/* Progress Bar */}
       <div className="mb-10">
         <div className="flex justify-between text-sm font-medium mb-2">
           <span>Step {step} of {TOTAL_STEPS}</span>
@@ -44,62 +46,34 @@ export default function AddChurchFlow() {
           <div
             className="h-full bg-blue-600 transition-all duration-300"
             style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
-          ></div>
+          />
         </div>
       </div>
 
-      {/* RENDER STEPS */}
       {step === 1 && (
-        <Step1Name
-          formData={formData}
-          setFormData={setFormData}
-          next={next}
-        />
+        <Step1Name formData={formData} setFormData={setFormData} next={next} />
       )}
 
       {step === 2 && (
-        <Step2Location
-          formData={formData}
-          setFormData={setFormData}
-          next={next}
-          back={back}
-        />
+        <Step2Location formData={formData} setFormData={setFormData} next={next} back={back} />
       )}
 
       {step === 3 && (
-        <Step3Type
-          formData={formData}
-          setFormData={setFormData}
-          next={next}
-          back={back}
-        />
+        <Step3Type formData={formData} setFormData={setFormData} next={next} back={back} />
       )}
 
       {step === 4 && (
-        <Step4Details
-          formData={formData}
-          setFormData={setFormData}
-          next={next}
-          back={back}
-        />
+        <Step4Details formData={formData} setFormData={setFormData} next={next} back={back} />
       )}
 
       {step === 5 && (
-        <Step4Image
-          formData={formData}
-          setFormData={setFormData}
-          next={next}
-          back={back}
-        />
+        <Step4Image formData={formData} setFormData={setFormData} next={next} back={back} />
       )}
-
 
       {step === 6 && (
-        <StepReview
-          formData={formData}
-          back={back}
-        />
+        <StepReview formData={formData} back={back} />
       )}
+
     </div>
   );
 }

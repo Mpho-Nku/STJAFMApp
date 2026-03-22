@@ -2,7 +2,13 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function ModalMessage({ open, onClose, title }) {
+type ModalMessageProps = {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+};
+
+export default function ModalMessage({ open, onClose, title }: ModalMessageProps) {
   return (
     <AnimatePresence>
       {open && (

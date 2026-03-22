@@ -4,14 +4,21 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Plus } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
+
+type EditPostModalProps = {
+  post: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdated?: () => void;
+};
 
 export default function EditPostModal({
   post,
   isOpen,
   onClose,
   onUpdated,
-}: any) {
+}: EditPostModalProps) {
   const [content, setContent] = useState("");
   const [location, setLocation] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -28,41 +35,40 @@ export default function EditPostModal({
 
   if (!isOpen) return null;
 
-  /* ---------------------------------------------------------
-     REMOVE EXISTING IMAGE
-  --------------------------------------------------------- */
+  /* REMOVE EXISTING IMAGE */
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /* ---------------------------------------------------------
-     ADD NEW IMAGES
-  --------------------------------------------------------- */
-  const handleAddImages = (e: any) => {
-    const files = Array.from(e.target.files);
+  /* ADD NEW IMAGES */
+  const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const files: File[] = Array.from(e.target.files);
     setNewFiles((prev) => [...prev, ...files]);
   };
 
-  /* ---------------------------------------------------------
-     UPLOAD NEW IMAGES TO SUPABASE STORAGE
-  --------------------------------------------------------- */
+  /* UPLOAD NEW IMAGES */
   const uploadNewImages = async (): Promise<string[]> => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return [];
 
     const uploadedUrls: string[] = [];
 
     for (let i = 0; i < newFiles.length; i++) {
       const file = newFiles[i];
       const ext = file.name.split(".").pop();
-      const fileName = `${userData.user.id}-${Date.now()}-${i}.${ext}`;
+      const fileName = `${user.id}-${Date.now()}-${i}.${ext}`;
 
-      const { error: uploadErr } = await supabase.storage
+      const { error } = await supabase.storage
         .from("post-images")
         .upload(fileName, file);
 
-      if (uploadErr) {
-        console.error("Upload error: ", uploadErr);
+      if (error) {
+        console.error("Upload error:", error);
         continue;
       }
 
@@ -76,19 +82,13 @@ export default function EditPostModal({
     return uploadedUrls;
   };
 
-  /* ---------------------------------------------------------
-     SAVE UPDATED POST
-  --------------------------------------------------------- */
+  /* SAVE UPDATED POST */
   const updatePost = async () => {
     setSaving(true);
 
-    // 1. Upload any new images
     const newImageUrls = await uploadNewImages();
-
-    // 2. Combine old + new
     const finalImages = [...images, ...newImageUrls];
 
-    // 3. Update row
     const { error } = await supabase
       .from("posts")
       .update({
@@ -108,7 +108,6 @@ export default function EditPostModal({
 
     window.dispatchEvent(new Event("post:created"));
     if (onUpdated) onUpdated();
-
     onClose();
   };
 
@@ -134,10 +133,7 @@ export default function EditPostModal({
         >
           {/* HEADER */}
           <div className="px-5 py-4 border-b flex items-center justify-between">
-            <button
-              onClick={onClose}
-              className="text-gray-500 text-[15px]"
-            >
+            <button onClick={onClose} className="text-gray-500 text-[15px]">
               Cancel
             </button>
 
@@ -156,30 +152,35 @@ export default function EditPostModal({
 
           {/* BODY */}
           <div className="px-5 py-5 space-y-5">
-
             {/* CAPTION */}
-            <div className="space-y-2">
-              <p className="text-[13px] text-gray-500 uppercase">Caption</p>
+            <div>
+              <p className="text-[13px] text-gray-500 uppercase mb-2">
+                Caption
+              </p>
+
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={4}
-                className="w-full rounded-2xl border p-3 text-[15px] focus:ring-blue-400 focus:border-blue-400"
+                className="w-full rounded-2xl border p-3 text-[15px]"
               />
             </div>
 
             {/* LOCATION */}
-            <div className="space-y-2">
-              <p className="text-[13px] text-gray-500 uppercase">Location</p>
+            <div>
+              <p className="text-[13px] text-gray-500 uppercase mb-2">
+                Location
+              </p>
+
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full rounded-xl border p-3 text-[15px] focus:ring-blue-400 focus:border-blue-400"
+                className="w-full rounded-xl border p-3 text-[15px]"
                 placeholder="Add location"
               />
             </div>
 
-            {/* IMAGES SECTION */}
+            {/* IMAGES */}
             <div>
               <p className="text-[13px] text-gray-500 uppercase mb-2">
                 Images
@@ -196,10 +197,10 @@ export default function EditPostModal({
                       height={300}
                       className="rounded-xl object-cover aspect-square"
                     />
-                    {/* DELETE BUTTON */}
+
                     <button
                       onClick={() => removeImage(i)}
-                      className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -213,6 +214,7 @@ export default function EditPostModal({
                   <Plus size={24} />
                   <span className="text-sm mt-1">Add Images</span>
                 </div>
+
                 <input
                   type="file"
                   accept="image/*"
@@ -222,11 +224,11 @@ export default function EditPostModal({
                 />
               </label>
 
-              {/* NEW FILE PREVIEWS */}
+              {/* NEW IMAGE PREVIEW */}
               {newFiles.length > 0 && (
                 <div className="mt-3 grid grid-cols-3 gap-3">
                   {newFiles.map((file, i) => (
-                    <div key={i} className="relative">
+                    <div key={i}>
                       <Image
                         src={URL.createObjectURL(file)}
                         alt="new"

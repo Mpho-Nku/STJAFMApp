@@ -3,8 +3,27 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function CommentsThread({ postId, user }: { postId: string; user: any }) {
-  const [comments, setComments] = useState<any[]>([]);
+type Comment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  parent_id: string | null;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+};
+
+export default function CommentsThread({
+  postId,
+  user,
+}: {
+  postId: string;
+  user: { id: string } | null;
+}) {
+  const [comments, setComments] = useState<Comment[]>([]);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
 
@@ -14,7 +33,8 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
       .select('*, profiles(full_name, avatar_url)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
-    setComments(data || []);
+
+    setComments((data as Comment[]) || []);
   };
 
   useEffect(() => {
@@ -24,16 +44,24 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
       .channel(`comments-${postId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'post_comments', filter: `post_id=eq.${postId}` },
-        loadComments
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_comments',
+          filter: `post_id=eq.${postId}`,
+        },
+        () => loadComments()
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [postId]);
 
   const postComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !user) return;
+
     await supabase.from('post_comments').insert([
       {
         post_id: postId,
@@ -42,6 +70,7 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
         parent_id: replyTo || null,
       },
     ]);
+
     setNewComment('');
     setReplyTo(null);
   };
@@ -50,12 +79,17 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
     comments
       .filter((c) => c.parent_id === parentId)
       .map((c) => (
-        <div key={c.id} className={`mt-2 ml-${level * 4}`}>
+        <div key={c.id} className="mt-2" style={{ marginLeft: level * 16 }}>
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 rounded-full bg-gray-300" />
+
             <div>
-              <p className="text-sm font-semibold">{c.profiles?.full_name}</p>
+              <p className="text-sm font-semibold">
+                {c.profiles?.full_name || 'User'}
+              </p>
+
               <p className="text-sm text-gray-700">{c.content}</p>
+
               <button
                 onClick={() => setReplyTo(c.id)}
                 className="text-xs text-blue-600 mt-1"
@@ -64,6 +98,7 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
               </button>
             </div>
           </div>
+
           {renderComments(c.id, level + 1)}
         </div>
       ));
@@ -80,6 +115,7 @@ export default function CommentsThread({ postId, user }: { postId: string; user:
           onChange={(e) => setNewComment(e.target.value)}
           className="flex-1 border rounded-lg px-3 py-1 text-sm"
         />
+
         <button
           onClick={postComment}
           className="text-blue-600 font-medium hover:underline"

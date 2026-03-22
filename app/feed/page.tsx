@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+
 // Components
 import PostReactions from "@/components/PostReactions";
 import CommentModal from "@/components/CommentModal";
@@ -14,38 +15,49 @@ import PostCarousel from "@/components/PostCarousel";
 
 import { deletePostWithMedia } from "@/lib/deletePost";
 
-
-
-
 export default function Feed() {
-const router = useRouter();
+  const router = useRouter();
+
   useEffect(() => {
-  const enforce = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return router.push("/auth");
+    const enforce = async () => {
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("church_id")
-      .eq("id", user.id)
-      .single();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!profile.church_id) {
-      return router.push("/onboarding/church");
-    }
+      if (!user) {
+        router.push("/auth");
+        return;
+      }
 
-    const { count } = await supabase
-      .from("events")
-      .select("*", { count: "exact", head: true })
-      .eq("created_by", user.id);
+      /* FIXED PROFILE CHECK */
 
-    if (count === 0) {
-      return router.push("/onboarding/events");
-    }
-  };
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("church_id")
+        .eq("id", user.id)
+        .maybeSingle();
 
-  enforce();
-}, []);
+      if (!profile?.church_id) {
+        router.push("/onboarding/church");
+        return;
+      }
+
+      /* EVENT CHECK */
+
+      const { count } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .eq("created_by", user.id);
+
+      if (count === 0) {
+        router.push("/onboarding/events");
+        return;
+      }
+    };
+
+    enforce();
+  }, [router]);
 
   const [posts, setPosts] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -92,7 +104,6 @@ const router = useRouter();
 
       const postsData = data || [];
 
-      // Add comment count
       const postsWithCounts = await Promise.all(
         postsData.map(async (post) => {
           const { count } = await supabase
@@ -178,7 +189,7 @@ const router = useRouter();
         >
           {/* HEADER */}
           <div className="flex items-center gap-3 p-4">
-            {/* Avatar */}
+
             {post.profiles?.avatar_url ? (
               <Image
                 src={post.profiles.avatar_url}
@@ -205,7 +216,6 @@ const router = useRouter();
               )}
             </div>
 
-            {/* OPTIONS */}
             {user?.id === post.user_id && (
               <button
                 onClick={() => {
@@ -219,19 +229,16 @@ const router = useRouter();
             )}
           </div>
 
-          {/* CAPTION */}
           {post.content && (
             <p className="px-4 pb-2 text-gray-800 text-[15px] whitespace-pre-wrap leading-relaxed">
               {post.content}
             </p>
           )}
 
-          {/* IMAGES — Instagram Carousel */}
           {post.images?.length > 0 && (
             <PostCarousel images={post.images} />
           )}
 
-          {/* REACTIONS BAR */}
           <div className="px-4 py-3 border-t">
             <PostReactions
               postId={post.id}
@@ -240,7 +247,6 @@ const router = useRouter();
             />
           </div>
 
-          {/* COMMENT PREVIEW */}
           {post.comment_count > 0 && (
             <button
               onClick={() => openComments(post)}
@@ -252,7 +258,6 @@ const router = useRouter();
         </div>
       ))}
 
-      {/* COMMENTS MODAL */}
       {selectedPost && (
         <CommentModal
           isOpen={isCommentsOpen}
@@ -262,7 +267,6 @@ const router = useRouter();
         />
       )}
 
-      {/* OPTIONS MENU */}
       {showOptions && optionsPost && (
         <PostOptionsMenu
           canEdit={user?.id === optionsPost.user_id}
@@ -283,7 +287,6 @@ const router = useRouter();
         />
       )}
 
-      {/* EDIT POST MODAL */}
       {isEditing && editingPost && (
         <EditPostModal
           post={editingPost}

@@ -18,6 +18,6 @@ serve(async (req) => {
 
     return new Response("ok");
   } catch (err) {
-    return new Response(err.toString(), { status: 500 });
+    return new Response(String(err), { status: 500 });
   }
 });

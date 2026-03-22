@@ -1,64 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell } from "lucide-react";
-import NotificationsDropdown from "./NotificationsDropdown";
-import { supabase } from "@/lib/supabaseClient";
+import { useNotificationStore } from "@/store/notifications";
 
-export default function NotificationsBell({ user }) {
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [open, setOpen] = useState(false);
-
-  async function loadUnread() {
-    if (!user) return;
-
-    const { count } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("recipient_id", user.id)
-      .is("read_at", null);
-
-    setUnreadCount(count || 0);
-  }
-
-  useEffect(() => {
-    if (!user) return;
-
-    loadUnread();
-
-    // Real-time notifications
-    const channel = supabase
-      .channel("notifications-listener")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
-        loadUnread
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [user]);
+export default function NotificationsDropdown() {
+  const { items } = useNotificationStore();
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="relative p-2 hover:bg-gray-100 rounded-full transition"
-      >
-        <Bell size={22} className="text-gray-700" />
-
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-            {unreadCount}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <NotificationsDropdown
-          user={user}
-          closeDropdown={() => setOpen(false)}
-        />
+    <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto">
+      {items.length === 0 ? (
+        <p className="p-4 text-sm text-gray-500">No notifications</p>
+      ) : (
+        items.map((n) => (
+          <div key={n.id} className="p-3 border-b hover:bg-gray-50">
+            <p className="text-sm">{n.message}</p>
+            <p className="text-xs text-gray-400">{n.created_at}</p>
+          </div>
+        ))
       )}
     </div>
   );

@@ -18,19 +18,21 @@ export default function NotificationsDropdown() {
           href={`/post/${n.post_id}`}
           className="flex gap-3 p-2 hover:bg-gray-50 rounded-lg"
         >
-          <Image
-            src={n.sender.avatar_url}
-            width={40}
-            height={40}
-            className="rounded-full"
-            alt=""
-          />
+        <Image
+  src={n.sender?.avatar_url || "/avatar.png"}
+  width={40}
+  height={40}
+  alt="avatar"
+  className="rounded-full"
+/>
 
           <div>
-            <p className="text-sm">
-              <span className="font-semibold">{n.sender.full_name}</span>{" "}
-              {n.message}
-            </p>
+          <p className="text-sm">
+  <span className="font-semibold">
+    {n.sender?.full_name || "User"}
+  </span>{" "}
+  {n.message}
+</p>
             <p className="text-xs text-gray-500">
               {new Date(n.created_at).toLocaleString()}
             </p>

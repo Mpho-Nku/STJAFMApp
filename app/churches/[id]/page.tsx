@@ -87,7 +87,7 @@ export default function ChurchDetails({ params }: any) {
             {church.name}
           </h1>
 
-          <ChurchTypeTag type={church.church_type} />
+          <ChurchTypeTag type={church.type} />
         </div>
 
         <p className="text-gray-700">
@@ -97,7 +97,7 @@ export default function ChurchDetails({ params }: any) {
 
         <p className="text-gray-700">
           <strong>Location:</strong>{" "}
-          {fullAddress || "To be announced"}
+          {church.location  || "To be announced"}
         </p>
 
         {church.description && (
@@ -106,11 +106,11 @@ export default function ChurchDetails({ params }: any) {
           </p>
         )}
 
-        {fullAddress && (
+        {church.location && (
           <a
             className="inline-flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              fullAddress
+              church.location
             )}`}
             target="_blank"
           >

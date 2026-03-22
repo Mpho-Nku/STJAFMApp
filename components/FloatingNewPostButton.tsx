@@ -6,23 +6,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CreatePost from '@/components/CreatePost';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import PostCard from "@/components/PostCard";
+import type { User } from '@supabase/supabase-js';
+
 export default function FloatingNewPostButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
-  // Fetch user on mount
+  // Fetch logged in user
   useEffect(() => {
-    (async () => {
+    const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
-    })();
+    };
+
+    loadUser();
   }, []);
 
   return (
     <>
-      {/* 🟦 Floating Button */}
+      {/* Floating Button */}
       <motion.button
         onClick={() => setIsOpen(true)}
         whileTap={{ scale: 0.9 }}
@@ -31,7 +34,7 @@ export default function FloatingNewPostButton() {
         <PlusIcon className="h-7 w-7" />
       </motion.button>
 
-      {/* 🪄 Modal */}
+      {/* Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -48,6 +51,7 @@ export default function FloatingNewPostButton() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Close button */}
               <button
                 onClick={() => setIsOpen(false)}
                 className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"

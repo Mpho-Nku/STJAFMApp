@@ -3,16 +3,21 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { User } from "@supabase/supabase-js";
 
 export default function EventOnboarding() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [church, setChurch] = useState(null);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [church, setChurch] = useState<string | null>(null);
   const [title, setTitle] = useState("");
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) return;
+
       setUser(user);
 
       const { data: profile } = await supabase
@@ -21,17 +26,19 @@ export default function EventOnboarding() {
         .eq("id", user.id)
         .single();
 
-      if (!profile.church_id) {
-        return router.push("/onboarding/church");
+      if (!profile?.church_id) {
+        router.push("/onboarding/church");
+        return;
       }
 
       setChurch(profile.church_id);
     };
+
     load();
-  }, []);
+  }, [router]);
 
   const saveEvent = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !user || !church) return;
 
     await supabase.from("events").insert({
       title,

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
+import MyEventsPage from '@/app/events/my/page';
+import { useRouter } from "next/navigation";
 import {
   BellIcon,
   Squares2X2Icon,
@@ -25,71 +27,66 @@ export default function NavBar() {
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+ const router = useRouter()
+
+   const viewChurch = (name: string) => {
+  router.push(`/churches?search=${encodeURIComponent(name)}`);
+
+  };
 
   // -------------------------------------------------------
   // LOAD USER + PROFILE + NOTIFICATIONS
   // -------------------------------------------------------
-  useEffect(() => {
-    const loadData = async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const currentUser = auth?.user;
-      setUser(currentUser);
+useEffect(() => {
+  const loadData = async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const currentUser = auth?.user;
 
-      if (!currentUser) return;
+    if (!currentUser) {
+      setUser(null);
+      return;
+    }
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .single();
+    setUser(currentUser);
 
-      setProfile(profileData);
+    // load profile
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", currentUser.id)
+      .single();
 
-      // Load notifications
-      const { data: notifs } = await supabase
-        .from("notifications")
-        .select(`
-          id,
-          type,
-          created_at,
-          read,
-          from,
-          post_id,
-          comment_id,
-          extra,
-          profiles:from (full_name, avatar_url)
-        `)
-        .eq("to", currentUser.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+    setProfile(profileData);
 
-      setNotifications(notifs || []);
+    // load notifications
+    const { data: notifData } = await supabase
+      .from("notifications")
+      .select("*, profiles:sender_id(full_name, avatar_url)")
+      .eq("recipient_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
 
-      // Count unread
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("to", currentUser.id)
-        .eq("read", false);
+    setNotifications(notifData || []);
 
-      setUnreadCount(count || 0);
-    };
+    const unread = notifData?.filter((n) => !n.read_at).length || 0;
+    setUnreadCount(unread);
+  };
 
-    loadData();
+  loadData();
 
-    // Live updates
-    const channel = supabase
-      .channel("nav-notifs")
-      .on(
-        "postgres_changes",
-        { event: "*", table: "notifications", schema: "public" },
-        () => loadData()
-      )
-      .subscribe();
+  const channel = supabase
+    .channel("notifications")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "notifications" },
+      () => loadData()
+    )
+    .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, []);
-
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
   const signOut = async () => {
     await supabase.auth.signOut();
     location.reload();
@@ -224,8 +221,8 @@ export default function NavBar() {
                                 {n.profiles?.avatar_url ? (
                                   <Image
                                     src={n.profiles.avatar_url}
-                                    width={40}
-                                    height={40}
+                                    width={20}
+                                    height={20}
                                     className="rounded-full"
                                     alt="avatar"
                                   />
@@ -260,87 +257,102 @@ export default function NavBar() {
             {/* ------------------------------------------------------
               PROFILE BUTTON + MENU
             ------------------------------------------------------ */}
-            <div className="relative">
-              <button
-                className="flex items-center"
-                onClick={() => {
-                  setProfileMenuOpen(!profileMenuOpen);
-                  setGridMenuOpen(false);
-                  setNotificationMenuOpen(false);
-                }}
-              >
-                {profile?.avatar_url ? (
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-600 shadow-md">
-                    <Image
-                      src={profile.avatar_url}
-                      width={40}
-                      height={40}
-                      alt="avatar"
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                    {profile?.full_name?.[0] || user?.email?.[0]}
-                  </div>
-                )}
-              </button>
+        {/* ---------- PROFILE MENU ---------- */}
+<div className="relative">
+  <button
+    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+    className="flex items-center"
+  >
+   <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+          <Image
+            src={profile?.avatar_url || "/default-avatar.png"}
+            alt="avatar"
+            width={700}
+            height={700}
+            className="object-cover"
+          />
+        </div>
+  </button>
 
-              <AnimatePresence>
-                {profileMenuOpen && (
-                  <motion.div
-                    className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
+  {profileMenuOpen && (
+    <div className="absolute right-0 mt-3 w-[340px] bg-white rounded-2xl shadow-xl border overflow-hidden z-50">
 
-                    {/* PROFILE PAGE */}
-                    <Link
-                      href={`/profile/${user?.id}`}
-                      className="block px-4 py-2 hover:bg-blue-50 text-blue-900"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      My Profile
-                    </Link>
+      {/* -------- HEADER -------- */}
+      <div className="p-5 flex items-center justify-between">
+        <h2 className="text-xl font-bold">
+          {profile?.full_name || "User"}
+        </h2>
 
-                    {/* DASHBOARD */}
-                    <Link
-                      href="/dashboard"
-                      className="block px-4 py-2 hover:bg-blue-50 text-blue-900"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
+        <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+          <Image
+            src={profile?.avatar_url || "/default-avatar.png"}
+            alt="avatar"
+            width={48}
+            height={48}
+            className="object-cover"
+          />
+        </div>
+      </div>
 
-                    {/* SAVED POSTS */}
-                    <Link
-                      href="/saved"
-                      className="block px-4 py-2 hover:bg-blue-50 text-blue-900"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      Saved Posts
-                    </Link>
+      {/* -------- QUICK ACTIONS -------- */}
+      <div className="grid grid-cols-3 gap-3 px-5 pb-5">
 
-                    {/* SETTINGS  ✅ NEW */}
-                    <Link
-                      href="/settings/profile"
-                      className="block px-4 py-2 hover:bg-blue-50 text-blue-900"
-                      onClick={() => setProfileMenuOpen(false)}
-                    >
-                      Settings
-                    </Link>
+        <div className="bg-gray-100 rounded-xl p-4 text-center hover:bg-gray-200 cursor-pointer transition">
+          <div className="flex justify-center mb-2">❓</div>
+          <p className="text-sm font-medium"></p>
+        <button
+           onClick={() => viewChurch("/churches")}
+           className="text-sm font-medium"
+        >
+          My Church   
+        </button>
+        </div>
 
-                    <button
-                      className="w-full text-left px-4 py-2 hover:bg-blue-50 text-red-600"
-                      onClick={signOut}
-                    >
-                      Sign out
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+<div
+  onClick={() => {
+    setProfileMenuOpen(false); // close dropdown
+    router.push("/events/my"); // correct route
+  }}
+  className="bg-gray-100 rounded-xl p-4 text-center hover:bg-gray-200 cursor-pointer transition"
+>
+  <div className="flex justify-center mb-2">📅</div>
+  <p className="text-sm font-medium">My Events</p>
+</div>
+
+        <div className="bg-gray-100 rounded-xl p-4 text-center hover:bg-gray-200 cursor-pointer transition">
+          <div className="flex justify-center mb-2">📄</div>
+          <p className="text-sm font-medium">Saved Events</p>
+        </div>
+
+      </div>
+
+      <div className="border-t" />
+
+      {/* -------- MENU ITEMS -------- */}
+      <div className="p-5 space-y-3 text-sm">
+
+        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
+          👤 <span>Manage account</span>
+        </div>
+
+      </div>
+
+      {/* -------- SIGN OUT -------- */}
+      <div className="p-5">
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            window.location.reload();
+          }}
+          className="w-full bg-gray-100 py-3 rounded-xl text-red-500 font-medium hover:bg-gray-200 transition"
+        >
+          Sign out
+        </button>
+      </div>
+
+    </div>
+  )}
+</div>
           </div>
         ) : (
           <div className="flex items-center gap-3">

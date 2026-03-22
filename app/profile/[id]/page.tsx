@@ -5,14 +5,39 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import Link from "next/link";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { Pencil, Trash2, Bookmark } from "lucide-react";
-export default function ProfilePage({ params }) {
+import { Pencil, Trash2 } from "lucide-react";
+
+type ProfilePageProps = {
+  params: {
+    id: string;
+  };
+};
+
+type Profile = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  followers?: string[];
+  following?: string[];
+};
+
+type Post = {
+  id: string;
+  image_url: string | null;
+  user_id: string;
+  created_at: string;
+};
+
+export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = params;
 
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [myPosts, setMyPosts] = useState<any[]>([]);
-  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [savedPosts] = useState<Post[]>([]);
+
   useEffect(() => {
     const load = async () => {
       const { data: p } = await supabase
@@ -21,7 +46,7 @@ export default function ProfilePage({ params }) {
         .eq("id", id)
         .single();
 
-      setProfile(p);
+      if (p) setProfile(p);
 
       const { data: postData } = await supabase
         .from("posts")
@@ -29,7 +54,10 @@ export default function ProfilePage({ params }) {
         .eq("user_id", id)
         .order("created_at", { ascending: false });
 
-      setPosts(postData || []);
+      if (postData) {
+        setPosts(postData);
+        setMyPosts(postData);
+      }
     };
 
     load();
@@ -43,6 +71,7 @@ export default function ProfilePage({ params }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+
       {/* HEADER */}
       <div className="flex items-center gap-6">
         <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gray-100 border">
@@ -68,10 +97,12 @@ export default function ProfilePage({ params }) {
               <p className="font-semibold">{postCount}</p>
               <p className="text-sm text-gray-500">posts</p>
             </div>
+
             <div className="text-center">
               <p className="font-semibold">{followerCount}</p>
               <p className="text-sm text-gray-500">followers</p>
             </div>
+
             <div className="text-center">
               <p className="font-semibold">{followingCount}</p>
               <p className="text-sm text-gray-500">following</p>
@@ -86,7 +117,7 @@ export default function ProfilePage({ params }) {
         <p className="text-gray-700 whitespace-pre-line">{profile.bio}</p>
       </div>
 
-      {/* EDIT BUTTON */}
+      {/* EDIT PROFILE BUTTON */}
       <div className="mt-6">
         <Link
           href="/settings/profile"
@@ -112,19 +143,24 @@ export default function ProfilePage({ params }) {
         ))}
       </div>
 
-
-    <section>
+      {/* MY POSTS MANAGER */}
+      <section className="mt-10">
         <h2 className="text-xl font-bold mb-3">My Posts</h2>
 
         {myPosts.length === 0 ? (
-          <p className="text-gray-500 text-sm">You haven't created any posts yet.</p>
+          <p className="text-gray-500 text-sm">
+            You haven't created any posts yet.
+          </p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {myPosts.map((p) => (
-              <div key={p.id} className="relative group border rounded-lg shadow overflow-hidden">
+              <div
+                key={p.id}
+                className="relative group border rounded-lg shadow overflow-hidden"
+              >
                 <Link href={`/post/${p.id}`}>
                   <Image
-                   src={p.image_url || "/placeholder.png"}
+                    src={p.image_url || "/placeholder.png"}
                     alt="post"
                     width={500}
                     height={500}
@@ -133,7 +169,11 @@ export default function ProfilePage({ params }) {
                 </Link>
 
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-5 transition">
-                  <Link href={`/post/${p.id}/edit`} className="text-white hover:text-blue-300">
+
+                  <Link
+                    href={`/post/${p.id}/edit`}
+                    className="text-white hover:text-blue-300"
+                  >
                     <Pencil size={22} />
                   </Link>
 
@@ -141,18 +181,27 @@ export default function ProfilePage({ params }) {
                     className="text-white hover:text-red-300"
                     onClick={async () => {
                       if (!confirm("Delete this post?")) return;
-                      await supabase.from("posts").delete().eq("id", p.id);
-                      setMyPosts((prev) => prev.filter((x) => x.id !== p.id));
+
+                      await supabase
+                        .from("posts")
+                        .delete()
+                        .eq("id", p.id);
+
+                      setMyPosts((prev) =>
+                        prev.filter((x) => x.id !== p.id)
+                      );
                     }}
                   >
                     <Trash2 size={22} />
                   </button>
+
                 </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
     </div>
   );
 }

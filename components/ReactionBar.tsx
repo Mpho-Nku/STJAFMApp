@@ -28,35 +28,39 @@ export default function ReactionBar({
   const [userReaction, setUserReaction] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    const fetchReactions = async () => {
-      const { data } = await supabase
-        .from('post_reactions')
-        .select('*')
-        .eq('post_id', postId);
-      if (data) {
-        const tally: Record<string, number> = {};
-        data.forEach((r) => {
-          tally[r.emoji] = (tally[r.emoji] || 0) + 1;
-        });
-        setCounts(tally);
-        const mine = data.find((r) => r.user_id === userId);
-        setUserReaction(mine?.emoji || null);
-      }
-    };
-    fetchReactions();
+useEffect(() => {
+  const fetchReactions = async () => {
+    const { data } = await supabase
+      .from("post_reactions")
+      .select("*")
+      .eq("post_id", postId);
 
-    const channel = supabase
-      .channel(`post-reactions-${postId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'post_reactions', filter: `post_id=eq.${postId}` },
-        () => fetchReactions()
-      )
-      .subscribe();
+    if (!data) return;
 
-    return () => supabase.removeChannel(channel);
-  }, [postId, userId]);
+    const counts: Record<string, number> = {};
+
+    data.forEach((r: any) => {
+      counts[r.type] = (counts[r.type] || 0) + 1;
+    });
+
+    setCounts(counts);
+  };
+
+  fetchReactions();
+
+  const channel = supabase
+    .channel(`reactions-${postId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", table: "post_reactions", schema: "public" },
+      fetchReactions
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel); // ✅ no promise returned
+  };
+}, [postId]);
 
   const handleReaction = async (type: string) => {
     if (userReaction === type) {

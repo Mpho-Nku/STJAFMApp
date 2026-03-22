@@ -2,11 +2,31 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-
 import CommentLikeButton from "./CommentLikeButton";
-
-import { Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
+
+type CommentProfile = {
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
+type Comment = {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  profiles?: CommentProfile | null;
+  replies?: Comment[];
+};
+
+type CommentItemProps = {
+  c: Comment;
+  user: any;
+  onReply: (comment: Comment) => void;
+  onRefresh: () => void;
+  level?: number;
+};
 
 export default function CommentItem({
   c,
@@ -14,7 +34,7 @@ export default function CommentItem({
   onReply,
   onRefresh,
   level = 0,
-}) {
+}: CommentItemProps) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(c.content);
   const [showReplies, setShowReplies] = useState(true);
@@ -39,13 +59,11 @@ export default function CommentItem({
   // -------------------------------------------
   const remove = async () => {
     if (!confirm("Delete comment?")) return;
+
     await supabase.from("post_comments").delete().eq("id", c.id);
+
     onRefresh();
   };
-
-  // -------------------------------------------
-  // UI — Renders
-  // -------------------------------------------
 
   return (
     <div className="mt-3" style={{ marginLeft: level * 22 }}>
@@ -84,6 +102,7 @@ export default function CommentItem({
                   <button className="text-blue-600" onClick={saveEdit}>
                     Save
                   </button>
+
                   <button
                     className="text-gray-600"
                     onClick={() => setEditing(false)}
@@ -134,9 +153,8 @@ export default function CommentItem({
           </div>
 
           {/* REPLIES */}
-          {c.replies?.length > 0 && (
+          {c.replies?.length ? (
             <div className="mt-1 ml-2">
-              {/* Toggle Button */}
               <button
                 onClick={() => setShowReplies(!showReplies)}
                 className="text-[12px] text-gray-500 hover:underline"
@@ -146,7 +164,6 @@ export default function CommentItem({
                   : `View replies (${c.replies.length})`}
               </button>
 
-              {/* Replies List */}
               {showReplies && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -166,7 +183,7 @@ export default function CommentItem({
                 </motion.div>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

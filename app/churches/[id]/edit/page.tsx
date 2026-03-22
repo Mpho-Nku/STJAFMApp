@@ -1,138 +1,218 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export default function EditChurchPage() {
-  const { id } = useParams();
-  const router = useRouter();
+export default function EditChurch() {
   const supabase = createClientComponentClient();
+  const router = useRouter();
+  const params = useParams();
+  const churchId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     name: "",
-    pastor_name: "",
-    township: "",
+    location: "",
+    type: "",
     description: "",
+    pastor_name: "",
+    image_url: "",
   });
 
-  // 1️⃣ Load church
+  const [newImage, setNewImage] = useState<File | null>(null);
+
+  // 🔍 Fetch church + check ownership
   useEffect(() => {
-    const loadChurch = async () => {
+    const fetchChurch = async () => {
+      setLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("churches")
-        .select("name, pastor_name, township, description")
-        .eq("id", id)
+        .select("*")
+        .eq("id", churchId)
         .single();
 
-      if (error) {
+      if (error || !data) {
+        setError("Church not found");
+        setLoading(false);
+        return;
+      }
+
+      // 🚨 Ownership check
+      if (data.created_by !== user.id) {
         setError("You are not allowed to edit this church");
         setLoading(false);
         return;
       }
 
-      setForm({
-        name: data.name ?? "",
-        pastor_name: data.pastor_name ?? "",
-        township: data.township ?? "",
-        description: data.description ?? "",
+      setFormData({
+        name: data.name || "",
+        location: data.location || "",
+        type: data.type || "",
+        description: data.description || "",
+        pastor_name: data.pastor_name || "",
+        image_url: data.image_url || "",
       });
 
       setLoading(false);
     };
 
-    loadChurch();
-  }, [id, supabase]);
+    if (churchId) fetchChurch();
+  }, [churchId, supabase, router]);
 
-  // 2️⃣ Save updates
-  const handleSave = async () => {
+  // 💾 Handle Update
+  const handleUpdate = async () => {
     try {
       setSaving(true);
-      setError("");
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert("Not authenticated");
+        return;
+      }
+
+      let imageUrl = formData.image_url;
+
+      // ✅ Upload new image if changed
+      if (newImage) {
+        const fileExt = newImage.name.split(".").pop();
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("church-images")
+          .upload(fileName, newImage);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from("church-images")
+          .getPublicUrl(fileName);
+
+        imageUrl = data.publicUrl;
+      }
+
+      // ✅ Update DB
       const { error } = await supabase
         .from("churches")
         .update({
-          name: form.name.trim(),
-          pastor_name: form.pastor_name || null,
-          township: form.township || null,
-          description: form.description || null,
+          name: formData.name,
+          location: formData.location,
+          type: formData.type,
+          description: formData.description,
+          pastor_name: formData.pastor_name,
+          image_url: imageUrl,
         })
-        .eq("id", id);
+        .eq("id", churchId);
 
       if (error) throw error;
 
-      router.push("/churches"); // back to list
-    } catch (err) {
-      setError("Failed to save changes");
+      router.push(`/churches/${churchId}`);
+    } catch (err: any) {
+      console.error("UPDATE ERROR:", err);
+      alert(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <p>Loading…</p>;
+  // ⏳ Loading
+  if (loading) return <p className="p-6">Loading...</p>;
+
+  // 🚨 Unauthorized / Error
+  if (error)
+    return (
+      <p className="p-6 text-red-500 font-semibold">
+        {error}
+      </p>
+    );
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-6">Edit Church</h1>
+      <h1 className="text-xl font-semibold mb-4">Edit Church</h1>
 
-      {error && <p className="text-red-600 mb-4">{error}</p>}
+      <div className="space-y-4">
+        <input
+          value={formData.name}
+          onChange={(e) =>
+            setFormData({ ...formData, name: e.target.value })
+          }
+          placeholder="Church Name"
+          className="w-full border px-3 py-2 rounded"
+        />
 
-      <input
-        className="w-full border p-2 rounded mb-3"
-        placeholder="Church Name"
-        value={form.name}
-        onChange={(e) =>
-          setForm((p) => ({ ...p, name: e.target.value }))
-        }
-      />
+        <input
+          value={formData.pastor_name}
+          onChange={(e) =>
+            setFormData({ ...formData, pastor_name: e.target.value })
+          }
+          placeholder="Pastor Name"
+          className="w-full border px-3 py-2 rounded"
+        />
 
-      <input
-        className="w-full border p-2 rounded mb-3"
-        placeholder="Pastor Name"
-        value={form.pastor_name}
-        onChange={(e) =>
-          setForm((p) => ({ ...p, pastor_name: e.target.value }))
-        }
-      />
+        <input
+          value={formData.location}
+          onChange={(e) =>
+            setFormData({ ...formData, location: e.target.value })
+          }
+          placeholder="Location"
+          className="w-full border px-3 py-2 rounded"
+        />
 
-      <input
-        className="w-full border p-2 rounded mb-3"
-        placeholder="Township / Location"
-        value={form.township}
-        onChange={(e) =>
-          setForm((p) => ({ ...p, township: e.target.value }))
-        }
-      />
+        <input
+          value={formData.type}
+          onChange={(e) =>
+            setFormData({ ...formData, type: e.target.value })
+          }
+          placeholder="Type"
+          className="w-full border px-3 py-2 rounded"
+        />
 
-      <textarea
-        className="w-full border p-2 rounded mb-4"
-        placeholder="Description"
-        rows={4}
-        value={form.description}
-        onChange={(e) =>
-          setForm((p) => ({ ...p, description: e.target.value }))
-        }
-      />
+        <textarea
+          value={formData.description}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
+          placeholder="Description"
+          className="w-full border px-3 py-2 rounded"
+        />
 
-      <div className="flex gap-3">
+        {/* Current Image */}
+        {formData.image_url && (
+          <img
+            src={formData.image_url}
+            className="w-40 rounded"
+            alt="Church"
+          />
+        )}
+
+        {/* Upload New */}
+        <input
+          type="file"
+          onChange={(e) => setNewImage(e.target.files?.[0] || null)}
+        />
+
         <button
-          onClick={() => router.back()}
-          className="border px-4 py-2 rounded"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={handleSave}
+          onClick={handleUpdate}
           disabled={saving}
           className="bg-blue-600 text-white px-4 py-2 rounded"
         >
-          {saving ? "Saving…" : "Save Changes"}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
     </div>
