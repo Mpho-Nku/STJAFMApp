@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies} from "next/headers";
 import { notFound } from "next/navigation";
 import EventDetailsClient from "./EventDetailsClient";
@@ -11,19 +11,7 @@ export default async function EventDetailsPage({
 }) {
   const cookieStore = cookies();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-  get(name: string) {
-    return cookieStore.get(name)?.value;
-  },
-  set: () => {},
-  remove: () => {},
-} as any
-    }
-  );
+  const supabase = createServerComponentClient({ cookies });
 
   /* ---------------- AUTH ---------------- */
   const {
