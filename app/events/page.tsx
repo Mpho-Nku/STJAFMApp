@@ -28,7 +28,7 @@ export default function EventsPage() {
   const router = useRouter();
 
   /* =========================
-     🔥 LOAD EVENTS (FIXED)
+     🔥 LOAD EVENTS
   ========================== */
   useEffect(() => {
     const load = async () => {
@@ -50,14 +50,19 @@ export default function EventsPage() {
         return;
       }
 
-      // ✅ NORMALIZE DATA (FIX)
-      const normalized = (data || []).map((event: any) => ({
-        id: event.id,
-        title: event.title,
-        start_time: event.start_time,
-        churchName: event.churches?.[0]?.name || "Unknown",
-        churchLocation: event.churches?.[0]?.location || "",
-      }));
+    const normalized = (data || []).map((event: any) => {
+  const church = Array.isArray(event.churches)
+    ? event.churches[0]
+    : event.churches;
+
+  return {
+    id: event.id,
+    title: event.title,
+    start_time: event.start_time,
+    churchName: church?.name || "Unknown",
+    churchLocation: church?.location || "",
+  };
+});
 
       setEvents(normalized);
     };
@@ -89,7 +94,6 @@ export default function EventsPage() {
   useEffect(() => {
     let temp = [...events];
 
-    // 🔍 SEARCH
     if (query) {
       const q = query.toLowerCase();
 
@@ -102,7 +106,6 @@ export default function EventsPage() {
       });
     }
 
-    // 📅 FILTER
     if (filter === "weekend") {
       temp = temp.filter((e) => isWeekend(e.start_time));
     }
@@ -117,6 +120,13 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-6">
+
+        <button
+        onClick={() => router.push("/")}
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+      >
+        ← Back
+      </button>
 
         {/* 🔍 SEARCH BAR */}
         <div className="mb-4 relative">

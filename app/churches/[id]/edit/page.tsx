@@ -51,7 +51,6 @@ export default function EditChurch() {
         return;
       }
 
-      // 🚨 Ownership check
       if (data.created_by !== user.id) {
         setError("You are not allowed to edit this church");
         setLoading(false);
@@ -89,7 +88,7 @@ export default function EditChurch() {
 
       let imageUrl = formData.image_url;
 
-      // ✅ Upload new image if changed
+      // Upload new image
       if (newImage) {
         const fileExt = newImage.name.split(".").pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
@@ -107,7 +106,6 @@ export default function EditChurch() {
         imageUrl = data.publicUrl;
       }
 
-      // ✅ Update DB
       const { error } = await supabase
         .from("churches")
         .update({
@@ -131,10 +129,8 @@ export default function EditChurch() {
     }
   };
 
-  // ⏳ Loading
   if (loading) return <p className="p-6">Loading...</p>;
 
-  // 🚨 Unauthorized / Error
   if (error)
     return (
       <p className="p-6 text-red-500 font-semibold">
@@ -144,8 +140,22 @@ export default function EditChurch() {
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      <h1 className="text-xl font-semibold mb-4">Edit Church</h1>
 
+      {/* 🔙 BACK BUTTON */}
+      <button
+        onClick={() => router.push(`/churches/${churchId}`)}
+        className="mb-4 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+      >
+        <span className="text-lg">←</span>
+        Back to Church
+      </button>
+
+      {/* TITLE */}
+      <h1 className="text-2xl font-bold mb-6">
+        Edit Church
+      </h1>
+
+      {/* FORM */}
       <div className="space-y-4">
         <input
           value={formData.name}
@@ -153,7 +163,7 @@ export default function EditChurch() {
             setFormData({ ...formData, name: e.target.value })
           }
           placeholder="Church Name"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full border px-3 py-2 rounded-lg"
         />
 
         <input
@@ -162,7 +172,7 @@ export default function EditChurch() {
             setFormData({ ...formData, pastor_name: e.target.value })
           }
           placeholder="Pastor Name"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full border px-3 py-2 rounded-lg"
         />
 
         <input
@@ -171,7 +181,7 @@ export default function EditChurch() {
             setFormData({ ...formData, location: e.target.value })
           }
           placeholder="Location"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full border px-3 py-2 rounded-lg"
         />
 
         <input
@@ -180,7 +190,7 @@ export default function EditChurch() {
             setFormData({ ...formData, type: e.target.value })
           }
           placeholder="Type"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full border px-3 py-2 rounded-lg"
         />
 
         <textarea
@@ -189,28 +199,29 @@ export default function EditChurch() {
             setFormData({ ...formData, description: e.target.value })
           }
           placeholder="Description"
-          className="w-full border px-3 py-2 rounded"
+          className="w-full border px-3 py-2 rounded-lg"
         />
 
-        {/* Current Image */}
+        {/* IMAGE PREVIEW */}
         {formData.image_url && (
           <img
             src={formData.image_url}
-            className="w-40 rounded"
+            className="w-40 rounded-lg shadow"
             alt="Church"
           />
         )}
 
-        {/* Upload New */}
+        {/* FILE INPUT */}
         <input
           type="file"
           onChange={(e) => setNewImage(e.target.files?.[0] || null)}
         />
 
+        {/* SAVE BUTTON */}
         <button
           onClick={handleUpdate}
           disabled={saving}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-black text-white  px-4 py-2 rounded-lg transition disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>

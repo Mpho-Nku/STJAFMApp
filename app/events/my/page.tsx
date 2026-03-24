@@ -50,7 +50,6 @@ export default function MyEventsPage() {
       if (error) {
         console.error(error);
       } else {
-        // ✅ FIX: NORMALIZE DATA
         const normalized = (data || []).map((event: any) => ({
           id: event.id,
           title: event.title,
@@ -78,6 +77,15 @@ export default function MyEventsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
 
+      {/* 🔙 BACK BUTTON */}
+      <button
+        onClick={() => router.back()}
+        className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+      >
+        <span className="text-lg">←</span>
+        Back
+      </button>
+
       {/* HEADER */}
       <div className="flex items-center justify-between mb-10">
         <h1 className="text-3xl font-bold">My Events</h1>
@@ -86,7 +94,7 @@ export default function MyEventsPage() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => router.push("/events/add")}
-          className="bg-blue-600 text-white px-5 py-2 rounded-full flex items-center gap-2 hover:bg-blue-700 transition"
+          className="bg-black text-white px-5 py-2 rounded-full flex items-center gap-2 transition"
         >
           <CalendarDaysIcon className="w-5 h-5" />
           Create Event
@@ -132,24 +140,20 @@ export default function MyEventsPage() {
                 onClick={() => router.push(`/events/${event.id}`)}
                 className="cursor-pointer group"
               >
-                {/* TITLE */}
                 <h2 className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition">
                   {event.title}
                 </h2>
 
-                {/* DATE */}
                 <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                   <CalendarDaysIcon className="w-4 h-4" />
                   {new Date(event.start_time).toLocaleDateString()}
                 </div>
 
-                {/* CHURCH */}
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                   <BuildingLibraryIcon className="w-4 h-4" />
                   {event.churchName}
                 </div>
 
-                {/* STATUS */}
                 <span
                   className={`text-xs px-3 py-1 rounded-full ${
                     isPast
@@ -161,7 +165,6 @@ export default function MyEventsPage() {
                 </span>
               </div>
 
-              {/* DIVIDER */}
               <div className="my-5 border-t" />
 
               {/* EDIT */}

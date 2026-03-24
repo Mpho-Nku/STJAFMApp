@@ -47,7 +47,7 @@ export default function DeleteEventButton({
       {/* 🔥 DELETE BUTTON */}
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition text-sm"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-black text-white transition text-sm"
       >
         <TrashIcon className="w-4 h-4" />
         Delete

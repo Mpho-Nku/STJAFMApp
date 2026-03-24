@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import DeleteChurchModal from "@/components/DeleteChurchModal";
 
 export default function ChurchesPage() {
   const router = useRouter();
@@ -13,6 +14,12 @@ export default function ChurchesPage() {
   const [query, setQuery] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // ✅ NEW STATE
+  const [showDelete, setShowDelete] = useState(false);
+  const [selectedChurchId, setSelectedChurchId] = useState<string | null>(null);
+  const [selectedChurchName, setSelectedChurchName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -40,36 +47,46 @@ export default function ChurchesPage() {
       .includes(query.toLowerCase())
   );
 
-  // ✅ EMPTY STATE CONDITION
   const showEmptyState = query.length > 2 && filtered.length === 0;
 
-  // ✅ HANDLE ADD CHURCH
   const handleAddChurch = () => {
     router.push(
       `/onboarding/church/add?name=${encodeURIComponent(query)}`
     );
   };
 
-  const handleDelete = async (id: string) => {
-    const ok = confirm("Delete this church?");
-    if (!ok) return;
+  // ✅ UPDATED DELETE HANDLER
+  const handleDelete = async () => {
+    if (!selectedChurchId) return;
 
-    const { error } = await supabase
-      .from("churches")
-      .delete()
-      .eq("id", id);
+    try {
+      setLoading(true);
 
-    if (error) {
-      alert("You are not allowed to delete this church");
-      return;
+      const { error } = await supabase
+        .from("churches")
+        .delete()
+        .eq("id", selectedChurchId)
+        .eq("created_by", userId); // 🔒 secure
+
+      if (error) {
+        alert("You are not allowed to delete this church");
+        return;
+      }
+
+      setChurches((prev) =>
+        prev.filter((c) => c.id !== selectedChurchId)
+      );
+
+      setShowDelete(false);
+      setOpenMenuId(null);
+    } finally {
+      setLoading(false);
     }
-
-    setChurches((prev) => prev.filter((c) => c.id !== id));
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      {/* 🔙 BACK */}
+      {/* BACK */}
       <button
         onClick={() => router.push("/")}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
@@ -89,7 +106,7 @@ export default function ChurchesPage() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      {/* ✅ EMPTY STATE */}
+      {/* EMPTY STATE */}
       {showEmptyState && (
         <div className="border rounded-xl p-6 text-center bg-gray-50">
           <p className="text-gray-500 text-sm">
@@ -118,7 +135,7 @@ export default function ChurchesPage() {
                 key={ch.id}
                 className="relative border rounded-xl bg-white shadow hover:shadow-lg transition"
               >
-                {/* IMAGE + LINK */}
+                {/* IMAGE */}
                 <Link href={`/churches/${ch.id}`}>
                   <div className="w-full h-40 bg-gray-100 rounded-t-xl overflow-hidden relative">
                     <Image
@@ -154,7 +171,11 @@ export default function ChurchesPage() {
                         </Link>
 
                         <button
-                          onClick={() => handleDelete(ch.id)}
+                          onClick={() => {
+                            setSelectedChurchId(ch.id);
+                            setSelectedChurchName(ch.name);
+                            setShowDelete(true);
+                          }}
                           className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                         >
                           Delete
@@ -171,9 +192,7 @@ export default function ChurchesPage() {
                     Pastor: {ch.pastor_name || "N/A"}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {[ch.location]
-                      .filter(Boolean)
-                      .join(", ")}
+                    {[ch.location].filter(Boolean).join(", ")}
                   </p>
                 </div>
               </div>
@@ -181,6 +200,15 @@ export default function ChurchesPage() {
           })}
         </div>
       )}
+
+      {/* ✅ MODAL */}
+      <DeleteChurchModal
+        isOpen={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        loading={loading}
+        churchName={selectedChurchName || ""}
+      />
     </div>
   );
 }

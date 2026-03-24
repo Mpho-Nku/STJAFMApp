@@ -1,16 +1,14 @@
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies} from "next/headers";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import EventDetailsClient from "./EventDetailsClient";
-
 import Link from "next/link";
+
 export default async function EventDetailsPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const cookieStore = cookies();
-
   const supabase = createServerComponentClient({ cookies });
 
   /* ---------------- AUTH ---------------- */
@@ -18,7 +16,6 @@ export default async function EventDetailsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  
   /* ---------------- EVENT ---------------- */
   const { data: event, error: eventError } = await supabase
     .from("events")
@@ -51,7 +48,6 @@ export default async function EventDetailsPage({
   let reminderDays: number | null = null;
 
   if (user) {
-    // Check if user saved this event
     const { data: saved } = await supabase
       .from("saved_events")
       .select("id")
@@ -61,7 +57,6 @@ export default async function EventDetailsPage({
 
     isSaved = !!saved;
 
-    // Get reminder (if any)
     const { data: reminder } = await supabase
       .from("event_reminders")
       .select("days_before")
@@ -75,14 +70,25 @@ export default async function EventDetailsPage({
   /* ---------------- RENDER ---------------- */
 
   return (
-    
-    <EventDetailsClient
-      event={event}
-      isOwner={isOwner}
-      isSaved={isSaved}
-      reminderDays={reminderDays}
-      user={user}
-    />
-    
+    <div className="max-w-4xl mx-auto px-4 py-6">
+
+      {/* 🔙 BACK BUTTON */}
+      <Link
+        href="/events"
+        className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="text-lg">←</span>
+        Back to Events
+      </Link>
+
+      {/* PAGE CONTENT */}
+      <EventDetailsClient
+        event={event}
+        isOwner={isOwner}
+        isSaved={isSaved}
+        reminderDays={reminderDays}
+        user={user}
+      />
+    </div>
   );
 }

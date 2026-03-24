@@ -31,24 +31,28 @@ export default async function EditEventPage({
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto px-4 py-6">
       
-      {/* ✅ Header */}
-      <div className="flex items-center justify-between mb-6">
-        
-        {/* Back Button */}
+      {/* ✅ HEADER */}
+      <div className="flex items-center gap-4 mb-6">
+
+        {/* 🔙 Back Button */}
         <Link
           href={`/events/${event.id}`}
           className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
         >
           <span className="text-lg">←</span>
+          Back to Event
         </Link>
 
-        {/* Title */}
-        <h1 className="text-xl font-semibold">Edit Event</h1>
       </div>
 
-      {/* Form */}
+      {/* ✅ TITLE */}
+      <h1 className="text-2xl font-bold mb-6">
+        Edit Event
+      </h1>
+
+      {/* ✅ FORM */}
       <EditEventForm event={event} />
     </div>
   );

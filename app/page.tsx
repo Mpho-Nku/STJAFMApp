@@ -66,7 +66,7 @@ export default function HomePage() {
 
       <button
         onClick={() => navigate("/churches")}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full w-full sm:w-auto"
+        className="bg-black text-white px-6 py-3 rounded-full w-full sm:w-auto"
       >
         Browse Churches
       </button>
