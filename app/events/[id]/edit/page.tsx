@@ -25,35 +25,37 @@ export default async function EditEventPage({
 
   if (error || !event) notFound();
 
-  // 🔒 OWNER CHECK
   if (event.created_by !== user.id) {
     redirect("/events");
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      
-      {/* ✅ HEADER */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-gray-50 flex justify-center">
+      <div className="w-full max-w-md px-4 py-6">
 
-        {/* 🔙 Back Button */}
-        <Link
-          href={`/events/${event.id}`}
-          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
-        >
-          <span className="text-lg">←</span>
-          Back to Event
-        </Link>
+        {/* HEADER */}
+        <div className="flex items-center gap-3 mb-6">
+          <Link
+            href={`/events/${event.id}`}
+            className="text-gray-600 text-sm"
+          >
+            ← Back
+          </Link>
+        </div>
 
+        {/* CARD */}
+        <div className="bg-white rounded-2xl shadow-sm p-5">
+
+          {/* TITLE */}
+          <h1 className="text-lg font-semibold text-gray-900 mb-4">
+            Edit Event
+          </h1>
+
+          {/* FORM */}
+          <EditEventForm event={event} />
+
+        </div>
       </div>
-
-      {/* ✅ TITLE */}
-      <h1 className="text-2xl font-bold mb-6">
-        Edit Event
-      </h1>
-
-      {/* ✅ FORM */}
-      <EditEventForm event={event} />
     </div>
   );
 }

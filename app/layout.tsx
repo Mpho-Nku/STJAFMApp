@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 export const metadata = {
   title: "St John AFM",
   description: "Church app",
+  viewport: "width=device-width, initial-scale=1",
 };
 
 type RootLayoutProps = {
