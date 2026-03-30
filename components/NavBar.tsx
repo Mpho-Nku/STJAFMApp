@@ -38,6 +38,8 @@ export default function NavBar() {
   // LOAD USER + PROFILE + NOTIFICATIONS
   // -------------------------------------------------------
 useEffect(() => {
+  let channel: any;
+
   const loadData = async () => {
     const { data: auth } = await supabase.auth.getUser();
     const currentUser = auth?.user;
@@ -68,23 +70,39 @@ useEffect(() => {
 
     setNotifications(notifData || []);
 
-    const unread = notifData?.filter((n) => !n.read_at).length || 0;
+    const unread = notifData?.filter((n) => !n.is_read).length || 0; // ✅ FIXED
     setUnreadCount(unread);
+
+    // ✅ REALTIME (FIXED + FILTERED)
+    channel = supabase
+      .channel("notifications-" + currentUser.id)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("REALTIME:", payload);
+
+          const newNotif = payload.new;
+
+          // add instantly to UI
+          setNotifications((prev) => [newNotif, ...prev.slice(0, 9)]);
+
+          // update badge
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
   };
 
   loadData();
 
-  const channel = supabase
-    .channel("notifications")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "notifications" },
-      () => loadData()
-    )
-    .subscribe();
-
   return () => {
-    supabase.removeChannel(channel);
+    if (channel) supabase.removeChannel(channel);
   };
 }, []);
   const signOut = async () => {
@@ -319,10 +337,13 @@ useEffect(() => {
   <p className="text-sm font-medium">My Events</p>
 </div>
 
-        <div className="bg-gray-100 rounded-xl p-4 text-center hover:bg-gray-200 cursor-pointer transition">
-          <div className="flex justify-center mb-2">📄</div>
-          <p className="text-sm font-medium">Saved Events</p>
-        </div>
+      <div
+  onClick={() => router.push("events/saved-events")}
+  className="bg-gray-100 rounded-xl p-4 text-center hover:bg-gray-200 cursor-pointer transition"
+>
+  <div className="flex justify-center mb-2">📄</div>
+  <p className="text-sm font-medium">Saved Events</p>
+</div>
 
       </div>
 
